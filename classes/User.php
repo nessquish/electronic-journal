@@ -40,16 +40,6 @@ class User
         return password_verify($password, $this->passwordHash);
     }
 
-    public function getLogin(): string
-    {
-        return $this->login;
-    }
-
-    public function getRole(): string
-    {
-        return $this->role;
-    }
-
     /**
      * Данные для сессии. Хэш пароля сюда намеренно не входит.
      */

@@ -45,6 +45,37 @@ abstract class Report implements Reportable
     }
 
     /**
+     * Отдаёт отчёт браузеру файлом CSV.
+     */
+    public function toCsv(): void
+    {
+        // Общая логика: любой отчёт собирается одинаково
+        $data = $this->generate();
+        $fileName = rawurlencode($data['title']) . '.csv';
+
+        // Сообщаем браузеру, что это файл
+        header('Content-Type: text/csv; charset=utf-8');
+        header("Content-Disposition: attachment; filename=\"report.csv\"; filename*=UTF-8''$fileName");
+
+        // Пишем прямо в ответ браузеру
+        $out = fopen('php://output', 'w');
+        // Метка UTF-8, чтобы Excel показал кириллицу
+        fwrite($out, "\xEF\xBB\xBF");
+        // Заголовки колонок
+        fputcsv($out, array_values($data['columns']), ';', '"', '');
+
+        // Строки в порядке колонок
+        foreach ($data['rows'] as $row) {
+            $line = [];
+            foreach (array_keys($data['columns']) as $key) {
+                $line[] = $row[$key];
+            }
+            fputcsv($out, $line, ';', '"', '');
+        }
+        fclose($out);
+    }
+
+    /**
      * Единый формат среднего балла для всех отчётов.
      */
     private function formatRow(array $row): array

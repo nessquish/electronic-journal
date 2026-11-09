@@ -28,7 +28,11 @@ function redirect(string $url): void {
 // Остановить работу с кодом ошибки
 function abort(int $code, string $message): void {
     http_response_code($code);
-    exit($message);
+    // Ошибку показываем в оформлении журнала
+    html_start('Ошибка ' . $code);
+    echo '<div class="login"><div class="login-card"><h1>Ошибка ' . $code . '</h1><p>' . e($message) . '</p>'
+        . '<a class="btn" href="index.php">На главную</a></div></div></body></html>';
+    exit;
 }
 
 // Форма отправлена методом POST?
@@ -180,70 +184,161 @@ function url_with(array $changes): string {
     return '?' . http_build_query(array_merge($_GET, $changes));
 }
 
-// Шапка страницы с меню
-function page_header(string $title): void {
-    // Данные для шапки
-    $user = current_user();
-    // Выбранная тема
-    $dark = ($_COOKIE['theme'] ?? '') === 'dark';
+// Значки меню
+function icon(string $name): string {
+    $paths = [
+        'sun' => '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+        'moon' => '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+    ];
+    return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . $paths[$name] . '</svg>';
+}
+
+// Значок раскрытого журнала
+function journal_icon(): string {
+    return '<svg class="mark" width="40" height="40" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+        . '<path d="M24 12C19 8 12 7 5 8v30c7-1 14 0 19 4 5-4 12-5 19-4V8c-7-1-14 0-19 4z" fill="var(--mark)"/>'
+        . '<path d="M24 12v30M11 16c3 0 6 .5 8 1.5M11 23c3 0 6 .5 8 1.5M11 30c3 0 6 .5 8 1.5M37 16c-3 0-6 .5-8 1.5M37 23c-3 0-6 .5-8 1.5M37 30c-3 0-6 .5-8 1.5"/>'
+        . '</svg>';
+}
+
+// Включена ли тёмная тема
+function is_dark(): bool {
+    return ($_COOKIE['theme'] ?? '') === 'dark';
+}
+
+// Ссылка смены темы
+function theme_link(): string {
+    $dark = is_dark();
+    return '<a class="nav" href="?theme=' . ($dark ? 'light' : 'dark') . '">'
+        . icon($dark ? 'sun' : 'moon') . ($dark ? 'Светлая тема' : 'Тёмная тема') . '</a>';
+}
+
+// Общее начало HTML
+function html_start(string $title): void {
     ?>
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-theme="<?= is_dark() ? 'dark' : 'light' ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= e($title) ?></title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: <?= $dark ? '#222' : '#fff' ?>; color: <?= $dark ? '#eee' : '#222' ?>; }
-        a { color: <?= $dark ? '#8cf' : '#06c' ?>; }
-        nav a { margin-right: 12px; }
-        table { border-collapse: collapse; margin: 10px 0; }
-        th, td { border: 1px solid #888; padding: 5px 10px; text-align: left; }
-        form.inline { display: inline; }
-        .warning { color: #c00; font-weight: bold; }
-        .error { color: #c00; }
-    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700&display=swap">
+    <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
-    <?php if ($user): ?>
-    <nav>
-        <a href="index.php">Главная</a>
-        <a href="grades.php">Оценки</a>
-        <a href="attendance.php">Посещаемость</a>
-        <?php if (can_edit()): ?><a href="reports.php">Отчёты</a><?php endif; ?>
-        <?php if ($user['role'] === 'admin'): ?><a href="users.php">Пользователи</a><?php endif; ?>
-        <a href="?theme=<?= $dark ? 'light' : 'dark' ?>"><?= $dark ? 'Светлая тема' : 'Тёмная тема' ?></a>
-        <a href="logout.php">Выйти (<?= e($user['login']) ?>)</a>
-    </nav>
-    <hr>
-    <?php endif; ?>
-    <h1><?= e($title) ?></h1>
     <?php
 }
 
+// Шапка страницы: боковое меню и заголовок
+function page_header(string $title, string $subtitle = '', string $actions = ''): void {
+    $user = current_user();
+    html_start($title);
+
+    // Гостю показываем только карточку входа
+    if (!$user) {
+        echo '<div class="login"><div class="login-card"><div><h1>' . e($title) . '</h1><p class="sub">' . e($subtitle) . '</p></div>';
+        return;
+    }
+
+    // Пункты меню зависят от роли
+    $menu = ['index.php' => 'Главная', 'grades.php' => 'Оценки', 'attendance.php' => 'Посещаемость'];
+    if (can_edit()) {
+        $menu['reports.php'] = 'Отчёты';
+    }
+    if ($user['role'] === 'admin') {
+        $menu['users.php'] = 'Пользователи';
+    }
+
+    // Страницы оценки подсвечивают пункт «Оценки»
+    $page = basename($_SERVER['SCRIPT_NAME']);
+    if (in_array($page, ['add_grade.php', 'edit_grade.php'], true)) {
+        $page = 'grades.php';
+    }
+    ?>
+    <div class="shell">
+        <aside class="side">
+            <div class="logo"><?= journal_icon() ?><span>Электронный журнал</span></div>
+            <?php foreach ($menu as $url => $name): ?>
+                <a class="nav <?= $url === $page ? 'on' : '' ?>" href="<?= $url ?>"><?= $name ?></a>
+            <?php endforeach; ?>
+            <?php // Тема и выход внизу панели ?>
+            <div class="side-bottom">
+                <?= theme_link() ?>
+                <a class="nav" href="logout.php">Выйти (<?= e($user['login']) ?>)</a>
+            </div>
+        </aside>
+        <main class="main">
+            <div class="head">
+                <div>
+                    <h1><?= e($title) ?></h1>
+                    <?php if ($subtitle !== ''): ?><p class="sub"><?= e($subtitle) ?></p><?php endif; ?>
+                </div>
+                <div class="row"><?= $actions ?></div>
+            </div>
+    <?php
+}
+
+// Конец страницы
 function page_footer(): void {
-    echo "</body>\n</html>\n";
+    if (current_user()) {
+        echo "</main></div>\n";
+    } else {
+        echo "</div></div>\n";
+    }
+    echo "<script src=\"assets/app.js\"></script>\n</body>\n</html>\n";
+}
+
+// Данные студента, который вошёл
+function current_student(): array {
+    global $db;
+    $id = current_user()['student_id'];
+    return $db->query('SELECT full_name, group_name FROM students WHERE id = ?', [$id])->fetch() ?: ['full_name' => '', 'group_name' => ''];
+}
+
+// Цветная метка среднего балла
+function average_pill(float $average): string {
+    $class = $average < 3 ? 'low' : ($average < LOW_AVG ? 'warn' : 'good');
+    return '<span class="pill ' . $class . '">' . number_format($average, 2) . '</span>';
+}
+
+// Кружок с оценкой
+function grade_badge($grade): string {
+    $value = (int) $grade;
+    return '<span class="g g' . $value . '">' . $value . '</span>';
+}
+
+// Цвет метки посещаемости
+function status_class(string $status): string {
+    return ['Н' => 'low', 'Б' => 'warn', 'У' => 'ok'][$status] ?? 'ok';
 }
 
 // Поля формы оценки, общие для добавления и редактирования
 function grade_fields(array $grade): void {
     ?>
-    <p>Студент:<br>
+    <p>Студент<br>
         <select name="student_id">
             <?php foreach (all_students() as $s): ?>
                 <option value="<?= $s['id'] ?>" <?= $s['id'] == $grade['student_id'] ? 'selected' : '' ?>><?= e($s['full_name'] . ' (' . $s['group_name'] . ')') ?></option>
             <?php endforeach; ?>
         </select>
     </p>
-    <p>Предмет:<br>
+    <p>Предмет<br>
         <select name="subject_id">
             <?php foreach (all_subjects() as $s): ?>
                 <option value="<?= $s['id'] ?>" <?= $s['id'] == $grade['subject_id'] ? 'selected' : '' ?>><?= e($s['title']) ?></option>
             <?php endforeach; ?>
         </select>
     </p>
-    <p>Оценка (2–5):<br><input type="number" name="grade" min="2" max="5" value="<?= e($grade['grade']) ?>"></p>
-    <p>Дата:<br><input type="date" name="date" value="<?= e($grade['date']) ?>"></p>
+    <p>Оценка (2–5)<br>
+        <select name="grade">
+            <option value="">Выберите оценку</option>
+            <?php foreach ([5, 4, 3, 2] as $value): ?>
+                <option value="<?= $value ?>" <?= (string) $value === (string) $grade['grade'] ? 'selected' : '' ?>><?= $value ?></option>
+            <?php endforeach; ?>
+        </select>
+    </p>
+    <p>Дата<br><input type="date" name="date" value="<?= e($grade['date']) ?>"></p>
     <?php
 }
 

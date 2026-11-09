@@ -7,7 +7,7 @@ require_once 'classes/Attendance.php';
 require_login();
 
 // Допустимые статусы
-$statuses = ['Н' => 'Отсутствовал', 'Б' => 'Болел', 'У' => 'Уважительная причина'];
+$statuses = ['Н' => 'отсутствовал', 'Б' => 'болел', 'У' => 'уважительная'];
 // Пока ошибки нет
 $error = '';
 // Значения формы по умолчанию
@@ -88,14 +88,19 @@ $stmt->execute($params);
 $rows = $stmt->fetchAll();
 
 // Начинаем вывод страницы
-page_header('Посещаемость');
+if (can_edit()) {
+    page_header('Посещаемость', 'Записи о пропусках');
+} else {
+    page_header('Моя посещаемость', current_student()['full_name']);
+}
 ?>
 <?php show_error($error); ?>
 
 <?php // Форма только для админа и преподавателя ?>
 <?php if (can_edit()): ?>
+    <div class="panel">
     <h2><?= $edit_id ? 'Изменить запись' : 'Добавить запись' ?></h2>
-    <form method="post">
+    <form method="post" class="row">
         <?= csrf_field() ?>
         <select name="student_id">
             <?php foreach (all_students() as $s): ?>
@@ -114,35 +119,37 @@ page_header('Посещаемость');
             <?php endforeach; ?>
         </select>
         <button type="submit">Сохранить</button>
-        <?php if ($edit_id): ?><a href="attendance.php">Отмена</a><?php endif; ?>
+        <?php if ($edit_id): ?><a class="btn alt" href="attendance.php">Отмена</a><?php endif; ?>
     </form>
+    </div>
 <?php endif; ?>
 
 <?php // Таблица посещаемости ?>
-<h2>Записи</h2>
-<table>
+<div class="wrap"><table>
     <tr>
-        <th>ФИО</th><th>Группа</th><th>Предмет</th><th>Дата</th><th>Статус</th>
+        <?php if (can_edit()): ?><th>ФИО</th><th>Группа</th><?php endif; ?><th>Предмет</th><th>Дата</th><th>Статус</th>
         <?php if (can_edit()): ?><th>Действия</th><?php endif; ?>
     </tr>
     <?php foreach ($rows as $row): ?>
         <tr>
-            <td><?= e($row['full_name']) ?></td>
-            <td><?= e($row['group_name']) ?></td>
+            <?php if (can_edit()): ?>
+                <td><?= e($row['full_name']) ?></td>
+                <td><?= e($row['group_name']) ?></td>
+            <?php endif; ?>
             <td><?= e($row['title']) ?></td>
             <td><?= e($row['date']) ?></td>
-            <td><?= e($row['status']) ?> — <?= e($statuses[$row['status']]) ?></td>
+            <td><span class="pill <?= status_class($row['status']) ?>"><?= e($row['status']) ?> — <?= e($statuses[$row['status']]) ?></span></td>
             <?php if (can_edit()): ?>
                 <td>
-                    <a href="?edit=<?= (int) $row['id'] ?>">Изменить</a>
+                    <a class="btn alt" href="?edit=<?= (int) $row['id'] ?>">Изменить</a>
                     <form class="inline" method="post" action="attendance.php" onsubmit="return confirm('Удалить запись?')">
                         <?= csrf_field() ?>
                         <input type="hidden" name="delete" value="<?= (int) $row['id'] ?>">
-                        <button type="submit">Удалить</button>
+                        <button type="submit" class="bad">Удалить</button>
                     </form>
                 </td>
             <?php endif; ?>
         </tr>
     <?php endforeach; ?>
-</table>
+</table></div>
 <?php page_footer(); ?>

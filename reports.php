@@ -27,13 +27,25 @@ $reports = [
     new SummaryReport($db, $group, $subject_id),
 ];
 
+// Названия вкладок и выбранная вкладка
+$tabs = ['Средний балл студента', 'Средний балл группы', 'Пропуски по студентам', 'Сводная ведомость'];
+$tab = min(count($tabs) - 1, max(0, (int) ($_GET['tab'] ?? 0)));
+
+// Сохранение выбранного отчёта в файл
+if (isset($_GET['export'])) {
+    add_log('Экспорт отчёта в CSV: ' . $tabs[$tab]);
+    $reports[$tab]->toCsv();
+    exit;
+}
+
 // Полиморфизм: функция знает только об интерфейсе Reportable
-function render_report(Reportable $report): void
+function render_report(Reportable $report, bool $visible): void
 {
     // Отчёт сам знает, как себя собрать
     $data = $report->generate();
 
-    echo '<h2>' . e($data['title']) . '</h2><table><tr>';
+    // Показываем только выбранный отчёт
+    echo '<div class="fill"' . ($visible ? '' : ' hidden') . '><div class="wrap"><table><tr>';
     // Заголовки таблицы
     foreach ($data['columns'] as $title) {
         echo '<th>' . e($title) . '</th>';
@@ -48,14 +60,23 @@ function render_report(Reportable $report): void
         }
         echo "</tr>\n";
     }
-    echo "</table>\n";
+    echo "</table></div></div>\n";
 }
 
 // Начинаем вывод страницы
-page_header('Отчёты');
+// Кнопка сохраняет открытый отчёт с выбранными фильтрами
+$actions = '<a class="btn alt" href="' . e(url_with(['tab' => $tab, 'export' => 1])) . '">Экспорт в CSV</a>';
+page_header('Отчёты', 'Средний балл и пропуски', $actions);
 ?>
 <?php // Фильтры отчётов ?>
-<form method="get">
+<?php // Переключение отчётов ?>
+<div class="tabs">
+    <?php foreach ($tabs as $i => $name): ?>
+        <a class="tab <?= $i === $tab ? 'on' : '' ?>" href="<?= e(url_with(['tab' => $i])) ?>"><?= $name ?></a>
+    <?php endforeach; ?>
+</div>
+<form method="get" class="row">
+    <input type="hidden" name="tab" value="<?= $tab ?>">
     Студент:
     <select name="student_id">
         <?php foreach ($students as $s): ?>
@@ -79,7 +100,7 @@ page_header('Отчёты');
 
 <?php
 // Выводим все отчёты одним циклом
-foreach ($reports as $report) {
-    render_report($report);
+foreach ($reports as $i => $report) {
+    render_report($report, $i === $tab);
 }
 page_footer();

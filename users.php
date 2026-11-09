@@ -61,13 +61,16 @@ $users = $pdo->query('SELECT u.id, u.login, u.role, s.full_name FROM users u LEF
 $logs = $pdo->query('SELECT user_login, action, created_at FROM logs ORDER BY id DESC LIMIT 30')->fetchAll();
 
 // Начинаем вывод страницы
-page_header('Пользователи');
+// Выбранная вкладка
+$tab = (int) ($_GET['tab'] ?? 0) === 1 ? 1 : 0;
+page_header('Пользователи', 'Учётные записи');
 ?>
 <?php show_error($error); ?>
 
 <?php // Форма добавления ?>
+<div class="panel">
 <h2>Добавить пользователя</h2>
-<form method="post">
+<form method="post" class="row">
     <?= csrf_field() ?>
     <input type="text" name="login" placeholder="Логин">
     <input type="password" name="password" placeholder="Пароль">
@@ -77,17 +80,22 @@ page_header('Пользователи');
         <option>admin</option>
     </select>
     <select name="student_id">
-        <option value="">Студент (для роли student)</option>
+        <option value="">Студент не выбран</option>
         <?php foreach (all_students() as $s): ?>
             <option value="<?= $s['id'] ?>"><?= e($s['full_name']) ?></option>
         <?php endforeach; ?>
     </select>
     <button type="submit">Добавить</button>
 </form>
+</div>
 
 <?php // Таблица пользователей ?>
-<h2>Все пользователи</h2>
-<table>
+<div class="tabs">
+    <a class="tab <?= $tab === 0 ? 'on' : '' ?>" href="?tab=0">Все пользователи</a>
+    <a class="tab <?= $tab === 1 ? 'on' : '' ?>" href="?tab=1">Журнал действий (последние 30)</a>
+</div>
+<div class="fill" <?= $tab === 0 ? '' : 'hidden' ?>>
+<div class="wrap"><table>
     <tr><th>Логин</th><th>Роль</th><th>Студент</th><th>Действия</th></tr>
     <?php foreach ($users as $u): ?>
         <tr>
@@ -98,16 +106,17 @@ page_header('Пользователи');
                 <form class="inline" method="post" onsubmit="return confirm('Удалить пользователя?')">
                     <?= csrf_field() ?>
                     <input type="hidden" name="delete" value="<?= (int) $u['id'] ?>">
-                    <button type="submit">Удалить</button>
+                    <button type="submit" class="bad">Удалить</button>
                 </form>
             </td>
         </tr>
     <?php endforeach; ?>
-</table>
+</table></div>
 
 <?php // Журнал действий ?>
-<h2>Журнал действий (последние 30)</h2>
-<table>
+</div>
+<div class="fill" <?= $tab === 1 ? '' : 'hidden' ?>>
+<div class="wrap"><table>
     <tr><th>Время</th><th>Пользователь</th><th>Действие</th></tr>
     <?php foreach ($logs as $log): ?>
         <tr>
@@ -116,5 +125,6 @@ page_header('Пользователи');
             <td><?= e($log['action']) ?></td>
         </tr>
     <?php endforeach; ?>
-</table>
+</table></div>
+</div>
 <?php page_footer(); ?>

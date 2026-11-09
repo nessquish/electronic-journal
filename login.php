@@ -34,12 +34,12 @@ if (is_post()) {
 }
 
 // Начинаем вывод страницы
-page_header('Электронный журнал');
+page_header('Электронный журнал', 'Войдите, чтобы увидеть оценки и посещаемость');
 ?>
 <?php show_error($error); ?>
-<form method="post">
-    <p>Логин:<br><input type="text" name="login"></p>
-    <p>Пароль:<br><input type="password" name="password"></p>
+<form method="post" class="form" style="max-width:none;display:flex;flex-direction:column;gap:14px">
+    <p>Логин<br><input type="text" name="login"></p>
+    <p>Пароль<br><input type="password" name="password"></p>
     <button type="submit">Войти</button>
 </form>
 <?php page_footer(); ?>

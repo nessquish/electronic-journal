@@ -41,13 +41,13 @@ if (is_post()) {
 }
 
 // Начинаем вывод страницы
-page_header('Изменить оценку');
+page_header('Изменить оценку', 'Оценка от 2 до 5');
 ?>
 <?php show_error($error); ?>
-<form method="post">
+<form method="post" class="panel form">
     <?= csrf_field() ?>
     <?php grade_fields($grade); ?>
-    <button type="submit">Сохранить</button>
-    <a href="grades.php">Отмена</a>
+    <div class="row"><button type="submit">Сохранить</button>
+    <a class="btn alt" href="grades.php">Отмена</a></div>
 </form>
 <?php page_footer(); ?>
